@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuakeScope — Earthquake Intelligence System</title>
+    
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <!-- Leaflet.js CDN for Geospatial Visualizations -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Liquid Glass Custom Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- =================================================================== -->
+    <!-- SVG LIQUID GLASS OPTICAL REFRACTION & SPECULAR FILTERS             -->
+    <!-- =================================================================== -->
+    <svg style="position: absolute; width: 0; height: 0; pointer-events: none; overflow: hidden;" aria-hidden="true">
+        <defs>
+            <!-- 1. Liquid Glass Refractive Surface Dispersion Filter -->
+            <filter id="liquidGlassFilter" x="-10%" y="-10%" width="120%" height="120%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.015 0.02" numOctaves="3" result="glassNoise" seed="85" />
+                <feDisplacementMap in="SourceGraphic" in2="glassNoise" scale="4" xChannelSelector="R" yChannelSelector="G" result="displacedGlass" />
+                <feGaussianBlur in="displacedGlass" stdDeviation="0.4" result="smoothRefraction" />
+                <feBlend mode="screen" in="SourceGraphic" in2="smoothRefraction" />
+            </filter>
+
+            <!-- 2. Specular Surface Flow & Luminous Edge Lighting -->
+            <filter id="glassSpecularFlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="turbulence" baseFrequency="0.012 0.018" numOctaves="2" result="flowTurbulence" seed="42" />
+                <feSpecularLighting in="flowTurbulence" surfaceScale="2" specularConstant="1.2" specularExponent="22" lighting-color="#FFF8EE" result="specularHighlight">
+                    <feDistantLight azimuth="75" elevation="55" />
+                </feSpecularLighting>
+                <feComposite in="specularHighlight" in2="SourceAlpha" operator="in" result="glassBevel" />
+                <feBlend mode="overlay" in="SourceGraphic" in2="glassBevel" />
+            </filter>
+
+            <!-- 3. Prismatic Chromatic Edge Aberration Filter -->
+            <filter id="glassPrismEdge" x="-10%" y="-10%" width="120%" height="120%">
+                <feOffset in="SourceGraphic" dx="-1" dy="-1" result="redShift" />
+                <feOffset in="SourceGraphic" dx="1" dy="1" result="cyanShift" />
+                <feBlend mode="screen" in="redShift" in2="cyanShift" />
+            </filter>
+        </defs>
+    </svg>
+
+    <!-- Background Ambient Lighting & Grain Overlay -->
+    <div class="ambient-glow glow-top-right"></div>
+    <div class="ambient-glow glow-bottom-left"></div>
+    <div class="ambient-glow glow-center-amber"></div>
+    <div class="ambient-glow glow-hero-orange"></div>
+
+    <div class="app-layout">
+        <!-- =================================================================== -->
+        <!-- 1. MACOS-INSPIRED TRANSLUCENT SIDEBAR                               -->
+        <!-- =================================================================== -->
+        <aside class="sidebar glass-panel">
+            <div class="brand">
+                <div class="brand-icon">
+                    <!-- Seismic Waveform SVG -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-title">QuakeScope</span>
+                    <span class="brand-subtitle">EARTHQUAKE INTELLIGENCE</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#overview" class="nav-item active" data-section="overview">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="9" rx="1.5"></rect>
+                        <rect x="14" y="3" width="7" height="5" rx="1.5"></rect>
+                        <rect x="14" y="12" width="7" height="9" rx="1.5"></rect>
+                        <rect x="3" y="16" width="7" height="5" rx="1.5"></rect>
+                    </svg>
+                    <span>Overview</span>
+                </a>
+                
+                <a href="#analytics" class="nav-item" data-section="analytics">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <span>Analytics</span>
+                </a>
+
+                <a href="#explorer" class="nav-item" data-section="explorer">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <span>Explorer</span>
+                </a>
+
+                <a href="#map" class="nav-item" data-section="map">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+                        <line x1="8" y1="2" x2="8" y2="18"></line>
+                        <line x1="16" y1="6" x2="16" y2="22"></line>
+                    </svg>
+                    <span>Seismic Map</span>
+                </a>
+
+                <a href="#manage" class="nav-item" data-section="manage">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                    <span>Manage Events</span>
+                </a>
+
+                <a href="#about" class="nav-item" data-section="about">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span>About Project</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="db-pill">
+                    <span class="status-indicator online" id="dbStatusDot"></span>
+                    <span class="db-label" id="dbStatusLabel">MongoDB Connected</span>
+                </div>
+                <div class="db-subtext" id="dbSubtext">quakescope_db &bull; 8.3.7</div>
+            </div>
+        </aside>
+
+        <!-- =================================================================== -->
+        <!-- 2. MAIN APPLICATION CONTENT AREA                                    -->
+        <!-- =================================================================== -->
+        <main class="main-content">
+            <!-- Top Glass Header Bar -->
+            <header class="app-header glass-panel">
+                <div class="header-left">
+                    <h1 class="page-title" id="pageTitle">Overview</h1>
+                    <span class="page-subtitle" id="pageSubtitle">EARTHQUAKE INTELLIGENCE &bull; USGS COMPREHENSIVE CATALOG</span>
+                </div>
+                
+                <div class="header-right">
+                    <div class="dataset-badge">
+                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                        </svg>
+                        <span id="headerDocCount">19,705 Events (2025–2026)</span>
+                    </div>
+
+                    <button class="btn btn-glass btn-icon" id="btnRefresh" title="Refresh Live MongoDB Data">
+                        <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- =============================================================== -->
+            <!-- SECTION A: OVERVIEW                                             -->
+            <!-- =============================================================== -->
+            <section id="section-overview" class="content-section active">
+                <!-- Hero Welcome Banner -->
+                <div class="hero-banner glass-panel">
+                    <div class="hero-content">
+                        <div class="hero-tag">QUAKESCOPE INTELLIGENCE SYSTEM</div>
+                        <h2 class="hero-title">See the signals beneath the surface.</h2>
+                        <p class="hero-desc">
+                            Analyzing <strong id="heroTotalCount">19,705</strong> worldwide earthquake records cataloged by the 
+                            United States Geological Survey (USGS). Explore focal depths, magnitude spectra, and chronological distributions.
+                        </p>
+                    </div>
+                    <div class="hero-actions">
+                        <button class="btn btn-primary" onclick="navigateToSection('explorer')">
+                            <span>Open Explorer</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
+                        </button>
+                        <button class="btn btn-secondary" onclick="navigateToSection('map')">
+                            <span>Geospatial Map</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Primary KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card glass-panel glow-card">
+                        <div class="kpi-header">
+                            <span class="kpi-label">TOTAL RECORDED EVENTS</span>
+                            <div class="kpi-icon-box orange">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="kpi-value" id="kpiTotalEvents">19,705</div>
+                        <div class="kpi-subtext">365-day continuous catalog</div>
+                    </div>
+
+                    <div class="kpi-card glass-panel">
+                        <div class="kpi-header">
+                            <span class="kpi-label">AVERAGE MAGNITUDE</span>
+                            <div class="kpi-icon-box amber">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="kpi-value" id="kpiAvgMag">4.46</div>
+                        <div class="kpi-subtext">Calculated via <code>$avg: "$magnitude"</code></div>
+                    </div>
+
+                    <div class="kpi-card glass-panel featured-kpi">
+                        <div class="kpi-header">
+                            <span class="kpi-label">STRONGEST EARTHQUAKE</span>
+                            <div class="kpi-icon-box red">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="kpi-value orange-gradient-text" id="kpiMaxMag">8.8 Mww</div>
+                        <div class="kpi-subtext text-truncate" id="kpiMaxLocation">2025 Kamchatka Peninsula, Russia</div>
+                    </div>
+
+                    <div class="kpi-card glass-panel">
+                        <div class="kpi-header">
+                            <span class="kpi-label">MAJOR QUAKES (M &ge; 6.0)</span>
+                            <div class="kpi-icon-box cyan">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="kpi-value" id="kpiStrongCount">146</div>
+                        <div class="kpi-subtext">Strong to Great events (&ge; 6.0)</div>
+                    </div>
+                </div>
+
+                <!-- Overview Tables Grid (Strongest & Recent preview) -->
+                <div class="grid-2-col">
+                    <div class="glass-panel panel-box">
+                        <div class="panel-header">
+                            <div class="panel-title-group">
+                                <h3 class="panel-title">Strongest Earthquakes</h3>
+                                <span class="panel-subtitle">Top major events by seismic energy release</span>
+                            </div>
+                            <button class="btn btn-sm btn-glass" onclick="navigateToSection('analytics')">View All</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="glass-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mag</th>
+                                        <th>Location</th>
+                                        <th>Depth</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="overviewTopQuakesBody">
+                                    <tr><td colspan="4" class="text-center py-4">Loading top events...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel panel-box">
+                        <div class="panel-header">
+                            <div class="panel-title-group">
+                                <h3 class="panel-title">Latest Recorded Activity</h3>
+                                <span class="panel-subtitle">Most recent events in database catalog</span>
+                            </div>
+                            <button class="btn btn-sm btn-glass" onclick="navigateToSection('explorer')">Explore</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="glass-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Mag</th>
+                                        <th>Location</th>
+                                        <th>Recorded Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="overviewRecentQuakesBody">
+                                    <tr><td colspan="4" class="text-center py-4">Loading recent events...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- =============================================================== -->
+            <!-- SECTION B: VISUAL ANALYTICS                                     -->
+            <!-- =============================================================== -->
+            <section id="section-analytics" class="content-section">
+                <!-- Charts Grid 1: Magnitude Spectrum & Monthly Trend -->
+                <div class="grid-2-col">
+                    <div class="glass-panel panel-box chart-panel">
+                        <div class="panel-header">
+                            <div class="panel-title-group">
+                                <h3 class="panel-title">Magnitude Distribution</h3>
+                                <span class="panel-subtitle">Event counts categorized via MongoDB <code>$bucket</code></span>
+                            </div>
+                            <span class="badge badge-amber">Pipeline 2</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chartMagDistribution"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel panel-box chart-panel">
+                        <div class="panel-header">
+                            <div class="panel-title-group">
+                                <h3 class="panel-title">Monthly Seismic Frequency</h3>
+                                <span class="panel-subtitle">Chronological trend aggregated via <code>$dateToString</code></span>
+                            </div>
+                            <span class="badge badge-orange">Pipeline 5</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chartMonthlyActivity"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Grid 2: Magnitude Scales & Focal Depth -->
+                <div class="grid-2-col mt-4">
+                    <div class="glass-panel panel-box chart-panel">
+                        <div class="panel-header">
+                            <div class="panel-title-group">
+                                <h3 class="panel-title">Magnitude Scale Types</h3>
+                                <span class="panel-subtitle">Breakdown by calculation method (mb, mww, ml, md)</span>
+                            </div>
+                            <span class="badge badge-cyan">Pipeline 4</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chartMagTypes"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel panel-box chart-panel">
+                        <div class="panel-header">
+                            <div class="panel-title-group">
+                                <h3 class="panel-title">Focal Depth Distribution</h3>
+                                <span class="panel-subtitle">Shallow (&lt;70km), Intermediate (70-300km), Deep (&ge;300km)</span>
+                            </div>
+                            <span class="badge badge-amber">Pipeline 6</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chartDepthDistribution"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Full Top 10 Ranked Earthquakes Table -->
+                <div class="glass-panel panel-box mt-4">
+                    <div class="panel-header">
+                        <div class="panel-title-group">
+                            <h3 class="panel-title">Top 10 Strongest Earthquakes of the Catalog</h3>
+                            <span class="panel-subtitle">Sorted by magnitude descending (Pipeline 3: <code>$sort</code> &amp; <code>$limit: 10</code>)</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="glass-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Event ID</th>
+                                    <th>Magnitude</th>
+                                    <th>Scale</th>
+                                    <th>Depth</th>
+                                    <th>Location</th>
+                                    <th>Event Timestamp</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analyticsTop10Body">
+                                <tr><td colspan="8" class="text-center py-4">Loading top 10 quakes...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- =============================================================== -->
+            <!-- SECTION C: EARTHQUAKE EXPLORER                                  -->
+            <!-- =============================================================== -->
+            <section id="section-explorer" class="content-section">
+                <!-- Search & Filter Glass Toolbar -->
+                <div class="glass-panel filter-toolbar">
+                    <div class="search-box">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="explorerSearchInput" placeholder="Search by Event ID or Location (e.g. Japan, Peru, Chile, California)...">
+                        <button class="btn-clear" id="btnClearSearch" title="Clear search">&times;</button>
+                    </div>
+
+                    <div class="filter-controls">
+                        <div class="filter-group">
+                            <label>Min Mag:</label>
+                            <select id="filterMinMag" class="glass-select">
+                                <option value="">Any</option>
+                                <option value="4.0">&ge; 4.0</option>
+                                <option value="4.5">&ge; 4.5</option>
+                                <option value="5.0">&ge; 5.0</option>
+                                <option value="6.0">&ge; 6.0</option>
+                                <option value="7.0">&ge; 7.0</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label>Scale:</label>
+                            <select id="filterMagType" class="glass-select">
+                                <option value="all">All Scales</option>
+                                <option value="mb">mb (Body wave)</option>
+                                <option value="mww">mww (Moment tensor)</option>
+                                <option value="ml">ml (Richter)</option>
+                                <option value="mwr">mwr (Regional)</option>
+                                <option value="md">md (Duration)</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label>Depth:</label>
+                            <select id="filterDepthCat" class="glass-select">
+                                <option value="all">All Depths</option>
+                                <option value="shallow">Shallow (&lt; 70 km)</option>
+                                <option value="intermediate">Intermediate (70–300 km)</option>
+                                <option value="deep">Deep (&ge; 300 km)</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label>Sort By:</label>
+                            <select id="filterSortBy" class="glass-select">
+                                <option value="event_time">Newest First</option>
+                                <option value="magnitude">Magnitude (Highest)</option>
+                                <option value="depth_km">Focal Depth</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-secondary btn-sm" id="btnResetFilters">Reset</button>
+                    </div>
+                </div>
+
+                <!-- Explorer Results Table -->
+                <div class="glass-panel panel-box mt-4">
+                    <div class="panel-header">
+                        <span class="results-count" id="explorerResultsCount">Showing 1–15 of 19,705 matching events</span>
+                        <div class="per-page-selector">
+                            <label>Per page:</label>
+                            <select id="selectPerPage" class="glass-select-sm">
+                                <option value="15">15</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="glass-table interactive-table">
+                            <thead>
+                                <tr>
+                                    <th>Event ID</th>
+                                    <th>Date &amp; Time (UTC)</th>
+                                    <th>Magnitude</th>
+                                    <th>Scale</th>
+                                    <th>Depth</th>
+                                    <th>Location</th>
+                                    <th>Event Type</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="explorerTableBody">
+                                <tr><td colspan="8" class="text-center py-6">Loading earthquake events...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination Navigation -->
+                    <div class="pagination-bar">
+                        <button class="btn btn-glass btn-sm" id="btnPrevPage" disabled>
+                            &larr; Previous
+                        </button>
+                        
+                        <div class="page-numbers" id="paginationNumbers">
+                            <!-- Generated via JavaScript -->
+                        </div>
+
+                        <button class="btn btn-glass btn-sm" id="btnNextPage">
+                            Next &rarr;
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- =============================================================== -->
+            <!-- SECTION D: GEOSPATIAL SEISMIC MAP                               -->
+            <!-- =============================================================== -->
+            <section id="section-map" class="content-section">
+                <div class="glass-panel panel-box">
+                    <div class="panel-header">
+                        <div class="panel-title-group">
+                            <h3 class="panel-title">Global Seismic Activity Map</h3>
+                            <span class="panel-subtitle">Geographic visualization of major earthquakes (M &ge; 5.0) &bull; Leaflet &bull; Esri Dark Gray Basemap</span>
+                        </div>
+                        <div class="map-legend">
+                            <span class="legend-item"><span class="legend-dot dot-yellow"></span> M 5.0–5.9</span>
+                            <span class="legend-item"><span class="legend-dot dot-orange"></span> M 6.0–6.9</span>
+                            <span class="legend-item"><span class="legend-dot dot-red"></span> M &ge; 7.0 Major</span>
+                        </div>
+                    </div>
+                    
+                    <div id="leafletMapContainer" class="leaflet-map-box"></div>
+                </div>
+            </section>
+
+            <!-- =============================================================== -->
+            <!-- SECTION E: MANAGE EVENTS (CRUD INTERFACE)                       -->
+            <!-- =============================================================== -->
+            <section id="section-manage" class="content-section">
+                <div class="grid-2-col">
+                    <!-- CREATE EVENT FORM -->
+                    <div class="glass-panel panel-box">
+                        <div class="panel-header">
+                            <div class="panel-title-group">
+                                <h3 class="panel-title">Create Earthquake Event</h3>
+                                <span class="panel-subtitle">Insert new record adhering to <code>$jsonSchema</code> rules</span>
+                            </div>
+                            <span class="badge badge-orange">CREATE</span>
+                        </div>
+
+                        <form id="formCreateEvent" class="glass-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Event ID <span class="required">*</span></label>
+                                    <input type="text" id="createEventId" class="glass-input" placeholder="e.g. test_tokyo_001" required>
+                                    <span class="form-hint">Must be unique (enforced by unique index)</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Magnitude <span class="required">*</span></label>
+                                    <input type="number" id="createMagnitude" class="glass-input" step="0.1" min="-2.0" max="10.0" placeholder="e.g. 5.2" required>
+                                    <span class="form-hint">Allowed: -2.0 to 10.0</span>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Magnitude Scale <span class="required">*</span></label>
+                                    <select id="createMagType" class="glass-select full-width" required>
+                                        <option value="mb">mb — Body wave</option>
+                                        <option value="mww">mww — Moment tensor</option>
+                                        <option value="ml">ml — Local Richter</option>
+                                        <option value="mwr">mwr — Regional moment</option>
+                                        <option value="md">md — Duration</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Focal Depth (km) <span class="required">*</span></label>
+                                    <input type="number" id="createDepth" class="glass-input" step="0.1" min="-10.0" max="1000.0" placeholder="e.g. 15.0" required>
+                                    <span class="form-hint">Allowed: -10 to 1000 km</span>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Latitude <span class="required">*</span></label>
+                                    <input type="number" id="createLatitude" class="glass-input" step="0.0001" min="-90.0" max="90.0" placeholder="e.g. 35.6762" required>
+                                    <span class="form-hint">-90 to +90 degrees</span>
+                                </div>
+                                <div class="form-group">
+                                    <label>Longitude <span class="required">*</span></label>
+                                    <input type="number" id="createLongitude" class="glass-input" step="0.0001" min="-180.0" max="180.0" placeholder="e.g. 139.6503" required>
+                                    <span class="form-hint">-180 to +180 degrees</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Location Description <span class="required">*</span></label>
+                                <input type="text" id="createLocation" class="glass-input" placeholder="e.g. 15 km SSE of Tokyo, Japan" required>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Event Type</label>
+                                    <input type="text" id="createEventType" class="glass-input" value="earthquake" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label>Review Status</label>
+                                    <select id="createReviewStatus" class="glass-select full-width">
+                                        <option value="automatic">automatic</option>
+                                        <option value="reviewed">reviewed</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="btnFillDemoValues">Fill Test Data</button>
+                                <button type="submit" class="btn btn-primary" id="btnSubmitCreate">Insert Document</button>
+                            </div>
+                            <div id="createAlertBox" class="alert-box"></div>
+                        </form>
+                    </div>
+
+                    <!-- SEARCH, UPDATE & DELETE PANEL -->
+                    <div class="glass-panel panel-box">
+                        <div class="panel-header">
+                            <div class="panel-title-group">
+                                <h3 class="panel-title">Manage Existing Event</h3>
+                                <span class="panel-subtitle">Find by ID, inspect details, update fields, or remove</span>
+                            </div>
+                            <span class="badge badge-amber">UPDATE &amp; DELETE</span>
+                        </div>
+
+                        <!-- Find Single Event -->
+                        <div class="search-single-box">
+                            <input type="text" id="manageSearchId" class="glass-input" placeholder="Enter Event ID (e.g. us7000rm06 or your test ID)...">
+                            <button class="btn btn-primary btn-sm" id="btnFindForManage">Lookup</button>
+                        </div>
+                        <div id="manageLookupAlert" class="alert-box"></div>
+
+                        <!-- Update Form (Hidden until loaded) -->
+                        <div id="manageEditContainer" class="edit-container" style="display: none;">
+                            <div class="loaded-event-badge">
+                                <span>Loaded: <strong id="editEventIdLabel"></strong></span>
+                                <span id="editOriginalMag" class="badge badge-orange"></span>
+                            </div>
+
+                            <form id="formUpdateEvent" class="glass-form mt-3">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Magnitude</label>
+                                        <input type="number" id="editMagnitude" class="glass-input" step="0.1" min="-2.0" max="10.0" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Depth (km)</label>
+                                        <input type="number" id="editDepth" class="glass-input" step="0.1" min="-10.0" max="1000.0" required>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Location</label>
+                                    <input type="text" id="editLocation" class="glass-input" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Review Status</label>
+                                    <select id="editReviewStatus" class="glass-select full-width">
+                                        <option value="reviewed">reviewed</option>
+                                        <option value="automatic">automatic</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-actions space-between">
+                                    <button type="button" class="btn btn-danger" id="btnTriggerDelete">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        <span>Delete Event</span>
+                                    </button>
+                                    
+                                    <button type="submit" class="btn btn-primary" id="btnSubmitUpdate">Save Changes ($set)</button>
+                                </div>
+                                <div id="updateAlertBox" class="alert-box"></div>
+                            </form>
+                        </div>
+
+                        <!-- One-Click Automated CRUD Demo Cycle -->
+                        <div class="demo-cycle-box mt-4">
+                            <h4 class="demo-cycle-title">Live CRUD Self-Test Demo</h4>
+                            <p class="demo-cycle-desc">
+                                Automatically runs an end-to-end verification cycle in MongoDB:
+                                <strong>Insert Test Record &rarr; Read &rarr; Update Magnitude &rarr; Delete &rarr; Verify Count</strong>.
+                            </p>
+                            <button class="btn btn-glass full-width" id="btnRunCrudCycle">Run Live CRUD Cycle</button>
+                            <div id="crudCycleOutput" class="cycle-output-log" style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- =============================================================== -->
+            <!-- SECTION F: ABOUT PROJECT & DATABASE ARCHITECTURE                -->
+            <!-- =============================================================== -->
+            <section id="section-about" class="content-section">
+                <div class="glass-panel panel-box">
+                    <div class="panel-header">
+                        <div class="panel-title-group">
+                            <h3 class="panel-title">Project Specifications &amp; Architecture</h3>
+                            <span class="panel-subtitle">CSE494: Intelligent NoSQL Databases &bull; Academic Milestone Stage 3</span>
+                        </div>
+                    </div>
+
+                    <div class="about-grid">
+                        <div class="about-card">
+                            <h4>Database Specifications</h4>
+                            <ul>
+                                <li><strong>Database Name:</strong> <code>quakescope_db</code></li>
+                                <li><strong>Target Collection:</strong> <code>earthquake_events</code></li>
+                                <li><strong>Storage Engine:</strong> WiredTiger (MongoDB 8.3.7)</li>
+                                <li><strong>Verified Count:</strong> 19,705 documents (100% intact)</li>
+                                <li><strong>Validation Level:</strong> Strict (Error action)</li>
+                                <li><strong>Primary Key:</strong> Unique index on <code>event_id</code></li>
+                            </ul>
+                        </div>
+
+                        <div class="about-card">
+                            <h4>USGS Catalog Provenance</h4>
+                            <ul>
+                                <li><strong>Data Source:</strong> USGS Earthquake Hazards Program</li>
+                                <li><strong>Catalog Name:</strong> ANSS Comprehensive Catalog (ComCat)</li>
+                                <li><strong>Time Span:</strong> Jan 1, 2025 to Jan 1, 2026 (365 days)</li>
+                                <li><strong>License:</strong> U.S. Government Public Domain</li>
+                                <li><strong>Max Magnitude:</strong> 8.8 Mww (Kamchatka Peninsula)</li>
+                                <li><strong>Negative Depths:</strong> High elevation volcanic events</li>
+                            </ul>
+                        </div>
+
+                        <div class="about-card">
+                            <h4>Technology Stack</h4>
+                            <ul>
+                                <li><strong>Backend:</strong> Python 3.13 + Flask 3.1</li>
+                                <li><strong>Database Driver:</strong> PyMongo 4.19</li>
+                                <li><strong>Frontend Design:</strong> Vanilla CSS3 (Apple Liquid Glass)</li>
+                                <li><strong>Charts &amp; Visuals:</strong> Chart.js 4.4 + Leaflet 1.9</li>
+                                <li><strong>Client Scripts:</strong> Vanilla Modern JavaScript</li>
+                                <li><strong>Port:</strong> <code>http://127.0.0.1:5000/</code></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- 3. DETAIL MODAL (Opens on table row click)                           -->
+    <!-- =================================================================== -->
+    <div id="eventDetailModal" class="modal-overlay">
+        <div class="modal-card glass-panel">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-tag">EARTHQUAKE DETAIL</span>
+                    <h3 id="modalEventId" class="modal-title">Event Identifier</h3>
+                </div>
+                <button class="btn-close-modal" id="btnCloseDetailModal">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="modal-kpi-row">
+                    <div class="modal-kpi">
+                        <span class="kpi-micro-label">MAGNITUDE</span>
+                        <span id="modalMagnitude" class="kpi-micro-value orange-gradient-text">4.5</span>
+                        <span id="modalMagType" class="kpi-micro-sub">mb</span>
+                    </div>
+                    <div class="modal-kpi">
+                        <span class="kpi-micro-label">DEPTH</span>
+                        <span id="modalDepth" class="kpi-micro-value">15.0</span>
+                        <span class="kpi-micro-sub">km</span>
+                    </div>
+                    <div class="modal-kpi">
+                        <span class="kpi-micro-label">REVIEW</span>
+                        <span id="modalReviewStatus" class="kpi-micro-value">reviewed</span>
+                        <span class="kpi-micro-sub">status</span>
+                    </div>
+                </div>
+
+                <div class="detail-props-list">
+                    <div class="prop-row">
+                        <span class="prop-label">Location Description:</span>
+                        <span id="modalLocation" class="prop-value"></span>
+                    </div>
+                    <div class="prop-row">
+                        <span class="prop-label">Recorded UTC Time:</span>
+                        <span id="modalTime" class="prop-value"></span>
+                    </div>
+                    <div class="prop-row">
+                        <span class="prop-label">Coordinates:</span>
+                        <span id="modalCoordinates" class="prop-value font-mono"></span>
+                    </div>
+                    <div class="prop-row">
+                        <span class="prop-label">Event Classification:</span>
+                        <span id="modalEventType" class="prop-value">earthquake</span>
+                    </div>
+                    <div class="prop-row">
+                        <span class="prop-label">Contributing Network:</span>
+                        <span id="modalNetwork" class="prop-value font-mono">us</span>
+                    </div>
+                    <div class="prop-row">
+                        <span class="prop-label">Seismic Station Count:</span>
+                        <span id="modalStations" class="prop-value">N/A</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" id="btnModalClose">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- 4. DELETE CONFIRMATION MODAL                                        -->
+    <!-- =================================================================== -->
+    <div id="deleteConfirmModal" class="modal-overlay">
+        <div class="modal-card glass-panel modal-danger">
+            <div class="modal-header">
+                <h3 class="modal-title">Confirm Deletion</h3>
+                <button class="btn-close-modal" id="btnCloseDeleteModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to permanently delete this earthquake event?</p>
+                <div class="delete-warning-box">
+                    <div><strong>Event ID:</strong> <span id="deleteConfirmEventId"></span></div>
+                    <div><strong>Location:</strong> <span id="deleteConfirmLocation"></span></div>
+                </div>
+                <p class="danger-note">&bull; This executes <code>db.earthquake_events.deleteOne()</code> in MongoDB.</p>
+            </div>
+            <div class="modal-footer space-between">
+                <button class="btn btn-secondary btn-sm" id="btnCancelDelete">Cancel</button>
+                <button class="btn btn-danger btn-sm" id="btnConfirmDeleteFinal">Yes, Delete Record</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main JavaScript Logic -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

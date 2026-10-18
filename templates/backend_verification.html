@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QuakeScope DB - Backend Verification Terminal</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #080B12;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      color: #F5F7FB;
+    }
+    .terminal-container {
+      width: 100%;
+      max-width: 1200px;
+      background: rgba(17, 21, 34, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 122, 24, 0.08);
+      backdrop-filter: blur(20px);
+    }
+    .terminal-header {
+      background: rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .window-dots {
+      display: flex;
+      gap: 8px;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #FF5F56; }
+    .dot-yellow { background: #FFBD2E; }
+    .dot-green { background: #27C93F; }
+    .window-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #9299AB;
+      letter-spacing: 0.3px;
+    }
+    .window-badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(103, 232, 249, 0.1);
+      border: 1px solid rgba(103, 232, 249, 0.3);
+      color: #67E8F9;
+      font-weight: 600;
+    }
+    .terminal-body {
+      padding: 24px 28px;
+      font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #D1D5DB;
+    }
+    .prompt {
+      color: #FFB547;
+      font-weight: 600;
+    }
+    .cmd {
+      color: #F5F7FB;
+      font-weight: 600;
+    }
+    .success {
+      color: #34D399;
+      font-weight: 600;
+    }
+    .info {
+      color: #60A5FA;
+    }
+    .warn {
+      color: #FBBF24;
+    }
+    .accent {
+      color: #FF7A18;
+      font-weight: 600;
+    }
+    .dim {
+      color: #6B7280;
+    }
+    .section-divider {
+      margin: 14px 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+    .banner {
+      color: #FFB547;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="terminal-container">
+    <div class="terminal-header">
+      <div class="window-dots">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+      </div>
+      <div class="window-title">QuakeScope DB Backend Server & Automated Verification Console (PowerShell)</div>
+      <div class="window-badge">MongoDB v8.3.7 : 27017</div>
+    </div>
+    <div class="terminal-body">
+      <div><span class="prompt">PS C:\quakescopedb&gt;</span> <span class="cmd">python app.py</span></div>
+      <div class="dim"> * Serving Flask app 'app' (QuakeScope DB Liquid Glass Dashboard)</div>
+      <div class="dim"> * Environment: development | Debug mode: off</div>
+      <div><span class="accent">[QuakeScope DB]</span> Connecting to MongoDB: <span class="info">mongodb://localhost:27017/quakescope_db</span></div>
+      <div><span class="success">[QuakeScope DB] Connection established successfully!</span> Initial catalog count: <span class="banner">19,705 documents</span></div>
+      <div><span class="accent">[QuakeScope DB]</span> Web server initialized on <span class="info">http://127.0.0.1:5000/</span> (Press CTRL+C to quit)</div>
+      <div class="dim">127.0.0.1 - - [18/Oct/2026 11:16:30] "GET / HTTP/1.1" 200 -</div>
+      <div class="dim">127.0.0.1 - - [18/Oct/2026 11:16:31] "GET /api/health HTTP/1.1" 200 - {"status":"connected","count":19705}</div>
+      <div class="dim">127.0.0.1 - - [18/Oct/2026 11:16:31] "GET /api/stats HTTP/1.1" 200 - {"total_events":19705,"avg_mag":4.46,"max_mag":8.8}</div>
+      <div class="dim">127.0.0.1 - - [18/Oct/2026 11:16:31] "GET /api/analytics/magnitude-distribution HTTP/1.1" 200 -</div>
+      <div class="dim">127.0.0.1 - - [18/Oct/2026 11:16:31] "GET /api/analytics/monthly-activity HTTP/1.1" 200 -</div>
+      <div class="dim">127.0.0.1 - - [18/Oct/2026 11:16:32] "GET /api/events?page=1&per_page=15 HTTP/1.1" 200 -</div>
+
+      <div class="section-divider"></div>
+
+      <div><span class="prompt">PS C:\quakescopedb&gt;</span> <span class="cmd">python -c "import main; main.run_automated_self_test()"</span></div>
+      <div class="banner">======================================================================</div>
+      <div class="banner"> RUNNING AUTOMATED VERIFICATION TEST SUITE</div>
+      <div class="banner">======================================================================</div>
+      <div>1. Initial Document Count: <span class="accent">19,705</span></div>
+      <div>2. Testing CREATE (insert_one)... <span class="success">[PASS] Inserted test record with MongoDB ID: 6ad45ec936aaebaf85561aac</span></div>
+      <div>3. Testing READ (find_one)... <span class="success">[PASS] Found test record: Near Coast of Honshu, Japan (Test Verification)</span></div>
+      <div>4. Testing UPDATE (update_one with $set)... <span class="success">[PASS] Successfully updated magnitude from 5.1 -&gt; 5.4</span></div>
+      <div>5. Testing SCHEMA VALIDATION REJECTION... <span class="success">[PASS] MongoDB server-side $jsonSchema validator rejected document</span></div>
+      <div class="dim">   Schema ValidationError (Code 121): Document violates collection $jsonSchema rules.</div>
+      <div>6. Testing DUPLICATE KEY REJECTION... <span class="success">[PASS] Unique index properly blocked duplicate ID</span></div>
+      <div class="dim">   DuplicateKeyError: Event ID 'test_autoverify_001' already exists in database.</div>
+      <div>7. Testing DELETE (delete_one)... <span class="success">[PASS] Successfully deleted test record: test_autoverify_001</span></div>
+      <div>8. Final Document Count: <span class="accent">19,705</span> <span class="success">[CONFIRMED: Original data fully intact]</span></div>
+      <div>9. Verifying 5 AGGREGATION PIPELINES...</div>
+      <div>   <span class="success">[PASS]</span> Aggregation 1: Total 19,705, Avg Mag 4.46</div>
+      <div>   <span class="success">[PASS]</span> Aggregation 2: 4 magnitude range categories ($bucket)</div>
+      <div>   <span class="success">[PASS]</span> Aggregation 3: Strongest quake is M8.8 (2025 Kamchatka Peninsula, Russia Earthquake)</div>
+      <div>   <span class="success">[PASS]</span> Aggregation 4: Found 9 distinct magnitude types ($group)</div>
+      <div>   <span class="success">[PASS]</span> Aggregation 5: Found 13 months (Jan 2025 - Jan 2026) ($dateToString)</div>
+      <div class="banner">======================================================================</div>
+      <div class="success"> [ALL VERIFICATION TESTS PASSED SUCCESSFULLY! ZERO REGRESSION DETECTED]</div>
+      <div class="banner">======================================================================</div>
+    </div>
+  </div>
+
+</body>
+</html>

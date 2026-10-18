@@ -1,0 +1,11 @@
+# QuakeScope DB - Python Dependencies
+# Course: CSE494 Intelligent NoSQL Databases
+
+# Official MongoDB driver for Python
+pymongo>=4.10.0
+
+# DNS toolkit required for MongoDB SRV connection strings
+dnspython>=2.7.0
+
+# Lightweight WSGI Web Framework for Stage 3 Dashboard
+Flask>=3.0.0
